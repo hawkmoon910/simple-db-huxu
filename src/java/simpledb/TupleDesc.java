@@ -246,7 +246,7 @@ public class TupleDesc implements Serializable {
     public String toString() {
         StringBuilder sb = new StringBuilder();
         // For each field (TDItem) in the schema, append a description to the string
-        for (TDItem item : items) {
+        for (int i = 0; i < items.size(); i++) {
             sb.append(item.fieldType).append("(").append(item.fieldName).append(")");
             // Only add a comma if this is not the last field
             if (i < items.size() - 1) {
