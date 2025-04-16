@@ -55,8 +55,10 @@ public class Catalog {
      * @param pkeyField the name of the primary key field
      */
     public void addTable(DbFile file, String name, String pkeyField) {
+        // Gets unique table id from file
         int tableId = file.getId();
 
+        // Updates all maps accordingly
         nameToId.put(name, tableId);
         idToFile.put(tableId, file);
         idToDesc.put(tableId, file.getTupleDesc());
@@ -84,9 +86,11 @@ public class Catalog {
      * @throws NoSuchElementException if the table doesn't exist
      */
     public int getTableId(String name) throws NoSuchElementException {
+        // If name is null or the map nameToId doesn't contain name, throw an exception
         if (name == null || !nameToId.containsKey(name)) {
             throw new NoSuchElementException("Table " + name + " not found.");
         }
+        // Otherwise return TableId of name
         return nameToId.get(name);
     }
 
@@ -97,9 +101,11 @@ public class Catalog {
      * @throws NoSuchElementException if the table doesn't exist
      */
     public TupleDesc getTupleDesc(int tableid) throws NoSuchElementException {
+        // If map idToDesc doesn't contain the tableId, throw an exception
         if (!idToDesc.containsKey(tableid)) {
             throw new NoSuchElementException("TupleDesc for table ID " + tableid + " not found.");
         }
+        // Otherwise return the schema of that table
         return idToDesc.get(tableid);
     }
 
@@ -110,26 +116,32 @@ public class Catalog {
      *     function passed to addTable
      */
     public DbFile getDatabaseFile(int tableid) throws NoSuchElementException {
+        // If map idToFile doesn't contain the tableId, throw an exception
         if (!idToFile.containsKey(tableid)) {
             throw new NoSuchElementException("DbFile for table ID " + tableid + " not found.");
         }
+        // Otherwise return the Dbfile of that table
         return idToFile.get(tableid);
     }
 
     public String getPrimaryKey(int tableid) {
+        // Returns the primary key name or empty string if none
         return idToPkey.getOrDefault(tableid, "");
     }
 
     public Iterator<Integer> tableIdIterator() {
+        // Returns an iterator over all table IDs
         return idToFile.keySet().iterator();
     }
 
     public String getTableName(int id) {
+        // Returns the name of a table using the ID
         return idToName.get(id);
     }
     
     /** Delete all tables from the catalog */
     public void clear() {
+        // Clears all of the maps
         nameToId.clear();
         idToFile.clear();
         idToDesc.clear();

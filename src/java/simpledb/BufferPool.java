@@ -38,7 +38,9 @@ public class BufferPool {
      * @param numPages maximum number of pages in this buffer pool.
      */
     public BufferPool(int numPages) {
+        // Sets numPages to current numPages
         this.numPages = numPages;
+        // Creates a new conccurent hashmap
         this.pageCache = new ConcurrentHashMap<>();
     }
     
@@ -73,19 +75,30 @@ public class BufferPool {
      */
     public  Page getPage(TransactionId tid, PageId pid, Permissions perm)
         throws TransactionAbortedException, DbException {
+        
+        // Try fetching the page from the cache
         Page page = pageCache.get(pid);
+
+        // If page is in the cache, return page
         if (page != null) {
             return page;
         }
 
+        // If the buffer pool (cache) is full, throw an exception
         if (pageCache.size() >= numPages) {
             throw new DbException("BufferPool is full.");
         }
 
+        // Get the Dbfile from the table of this page
         DbFile file = Database.getCatalog().getDatabaseFile(pid.getTableId());
+
+        // Read the page
         page = file.readPage(pid);
 
+        // Add the page to the cache (buffer pool)
         pageCache.put(pid, page);
+
+        // Return the page
         return page;
     }
 
