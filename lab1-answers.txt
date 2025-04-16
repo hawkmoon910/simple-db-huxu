@@ -1,0 +1,19 @@
+Lab1 was about building the basic components of a simple database (simpledb duh). This implementation included
+Tuple, TupleDesc, Catalog, getPage part of BufferPool, HeapPageId, RecordId, HeapPage, HeapFile, and SeqScan.
+Tuple and TupbleDesc defined the schema and data, storing field types and checked for equality of schemas.
+Catalog was a big map of tables which was able to add tables, get table names, schemas, and file info.
+BufferPool only had the getPage part implemented which allowed access to pages.
+HeapPageId was the identification of a page consisting of table id access, page number access, and equality comparison.
+RecordId was the identification of a tuple consisting of record id access, tuple number access, and equality comparison.
+HeapPage was a single page in a heap file of many stored tuples. It parsed raw byte data into tuple objects, managed
+slot occupancy using a bits, and handled insertion & deletion of tuples on the page.
+HeapFile was a database table stored as a file on disk. It divided the file into pages, allowed access to those pages
+through readPage, and calculated number of pages. I implemented the iterator internally.
+SeqScan did a sequential scan over all the tuples in a table. I made sure to avoid keeping references to non-serializable
+objects like DbFile or Catalog, so I used Database.getCatalog() dynamically whenever I needed something.
+
+The only special design decision that I remembered making was doing the iterator internally in HeapFile.
+
+Unit test that could be added is a bufferpool test for the caching part of getPage, probably calling getPage twice and checking for equality is good enough
+
+I didn't make changes to the API.
