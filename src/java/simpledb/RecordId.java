@@ -10,10 +10,10 @@ public class RecordId implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
-
+    // Page id of page where tuple is
     private final PageId pid;
 
-
+    // Tuple number of the page
     private final int tupleno;
 
     /**
@@ -26,6 +26,7 @@ public class RecordId implements Serializable {
      *            the tuple number within the page.
      */
     public RecordId(PageId pid, int tupleno) {
+        // Sets pid and tupleno to new ones
         this.pid = pid;
         this.tupleno = tupleno;
     }
@@ -34,14 +35,16 @@ public class RecordId implements Serializable {
      * @return the tuple number this RecordId references.
      */
     public int getTupleNumber() {
-        return tupleno;
+        // Returns tupleno (tuple number)
+        return this.tupleno;
     }
 
     /**
      * @return the page id this RecordId references.
      */
     public PageId getPageId() {
-        return pid;
+        // Returns pid (page id)
+        return this.pid;
     }
 
     /**
@@ -52,15 +55,20 @@ public class RecordId implements Serializable {
      */
     @Override
     public boolean equals(Object o) {
+        // Checks for equality, returns true if equal
         if (this == o) {
             return true;
         }
 
+        // Checks if null or type mismatch, returns false
         if (o == null || !(o instanceof RecordId)) {
             return false;
         }
         
+        // Typecasts Object o to a RecordId
         RecordId other = (RecordId) o;
+
+        // Returns true if tableIds and pgNos are equal to object o ones
         return this.tupleno == other.tupleno && this.pid.equals(other.pid);
     }
 
@@ -72,6 +80,7 @@ public class RecordId implements Serializable {
      */
     @Override
     public int hashCode() {
+        // Returns hashcode which is 31 times hashcode of pid plus tupleno
         return 31 * pid.hashCode() + tupleno;
     }
 

@@ -3,10 +3,10 @@ package simpledb;
 /** Unique identifier for HeapPage objects. */
 public class HeapPageId implements PageId {
 
-
+    // Id of table on this page
     private final int tableId;
 
-
+    // Page number of this page in the table
     private final int pgNo;
 
     /**
@@ -17,13 +17,15 @@ public class HeapPageId implements PageId {
      * @param pgNo The page number in that table.
      */
     public HeapPageId(int tableId, int pgNo) {
+        // Sets tableId and pgNo to given ones
         this.tableId = tableId;
         this.pgNo = pgNo;
     }
 
     /** @return the table associated with this PageId */
     public int getTableId() {
-        return tableId;
+        // Returns tableId
+        return this.tableId;
     }
 
     /**
@@ -31,7 +33,8 @@ public class HeapPageId implements PageId {
      *   this PageId
      */
     public int getPageNumber() {
-        return pgNo;
+        // Returns page number
+        return this.pgNo;
     }
 
     /**
@@ -41,6 +44,7 @@ public class HeapPageId implements PageId {
      * @see BufferPool
      */
     public int hashCode() {
+        // Generates hashcode by multiplying tableId with 31 then adding pgNo
         return 31 * tableId + pgNo;
     }
 
@@ -52,16 +56,20 @@ public class HeapPageId implements PageId {
      *   ids are the same)
      */
     public boolean equals(Object o) {
+        // Checks for equality, returns true if equal
         if (this == o) {
             return true;
         }
 
+        // Checks if null or type mismatch, returns false
         if (o == null || !(o instanceof HeapPageId)) {
             return false;
         }
 
+        // Typecasts Object o to a HeapPageId
         HeapPageId other = (HeapPageId) o;
         
+        // Returns true if tableIds and pgNos are equal to object o ones
         return this.tableId == other.tableId && this.pgNo == other.pgNo;
     }
 
