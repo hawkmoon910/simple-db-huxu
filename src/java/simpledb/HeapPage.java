@@ -71,7 +71,7 @@ public class HeapPage implements Page {
         // 1 bit for header per tuple
         int tupleBits = td.getSize() * 8 + 1;
         // Returns number of tuples on the page
-        return pageSizeBits / tupleBits
+        return pageSizeBits / tupleBits;
     }
 
     /**

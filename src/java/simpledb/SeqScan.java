@@ -11,9 +11,13 @@ public class SeqScan implements OpIterator {
 
     private static final long serialVersionUID = 1L;
 
+    // Transaction Id to scan
     private TransactionId tid;
+    // Table Id to scan
     private int tableid;
+    // Alias for name of fields
     private String tableAlias;
+    // Iterator
     private DbFileIterator it;
 
     /**
@@ -33,10 +37,11 @@ public class SeqScan implements OpIterator {
      *            tableAlias.null, or null.null).
      */
     public SeqScan(TransactionId tid, int tableid, String tableAlias) {
+        // Intitalizes everything by setting all fields to the new ones, iterator it to null
         this.tid = tid;
         this.tableid = tableid;
         this.tableAlias = tableAlias;
-        // this.it = null;
+        this.it = null;
     }
 
     /**
@@ -45,6 +50,7 @@ public class SeqScan implements OpIterator {
      *       be the actual name of the table in the catalog of the database
      * */
     public String getTableName() {
+        // Returns name of table not alias
        return Database.getCatalog().getTableName(tableid);
     }
 
@@ -53,6 +59,7 @@ public class SeqScan implements OpIterator {
      * */
     public String getAlias()
     {
+        // Returns alias of table
         return this.tableAlias;
     }
 
@@ -69,6 +76,7 @@ public class SeqScan implements OpIterator {
      *            tableAlias.null, or null.null).
      */
     public void reset(int tableid, String tableAlias) {
+        // Sets tableid and tableAlias to new ones and sets iterator it to null again
         this.tableid = tableid;
         this.tableAlias = tableAlias;
         this.it = null;
@@ -79,8 +87,11 @@ public class SeqScan implements OpIterator {
     }
 
     public void open() throws DbException, TransactionAbortedException {
+        // Retrieve the DbFile for the table
         DbFile dbFile = Database.getCatalog().getDatabaseFile(tableid);
+        // Create the iterator for it
         it = dbFile.iterator(tid);
+        // Opens iterator it
         it.open();
     }
 
@@ -95,41 +106,55 @@ public class SeqScan implements OpIterator {
      *         prefixed with the tableAlias string from the constructor.
      */
     public TupleDesc getTupleDesc() {
+        // Gets schema for table
         TupleDesc original = Database.getCatalog().getTupleDesc(tableid);
+        // Pre-allocate arrays for types and aliased field names
         Type[] types = new Type[original.numFields()];
         String[] fieldNames = new String[original.numFields()];
 
+        // Checks all fields
         for (int i = 0; i < original.numFields(); i++) {
+            // Gets type of field
             types[i] = original.getFieldType(i);
+            // Gets name of field
             String fieldName = original.getFieldName(i);
+            // Prefixs it with alias =
             fieldNames[i] = tableAlias + "." + fieldName;
         }
 
+        // Returns the new TupleDesc (schema)
         return new TupleDesc(types, fieldNames);
     }
 
     public boolean hasNext() throws TransactionAbortedException, DbException {
+        // Returns true if iterator exists and there are more tuples, otherwise false
         return it != null && it.hasNext();
     }
 
     public Tuple next() throws NoSuchElementException,
             TransactionAbortedException, DbException {
+        // If iterator doesn't exist (null), throw exception
         if (it == null) {
             throw new NoSuchElementException("Iterator not open");
         }
+        // Otherwise, return the next tuple in the iterator
         return it.next();
     }
 
     public void close() {
+        // If iterator it is started (not null) then close
         if (it != null) {
             it.close();
         }
+        // Set iterator it to null
         it = null;
     }
 
     public void rewind() throws DbException, NoSuchElementException,
             TransactionAbortedException {
+        // Reset state by closing
         close();
+        // Restart by opening again from the top
         open();
     }
 }
