@@ -41,7 +41,7 @@ public class TupleDesc implements Serializable {
      *        that are included in this TupleDesc
      * */
     public Iterator<TDItem> iterator() {
-        return items.iterator(); // Return iterator over field list
+        return this.items.iterator(); // Return iterator over field list
     }
 
     private static final long serialVersionUID = 1L;
@@ -62,7 +62,7 @@ public class TupleDesc implements Serializable {
      */
     public TupleDesc(Type[] typeAr, String[] fieldAr) {
         // Initialize the list of TDItems
-        items = new ArrayList<>();
+        this.items = new ArrayList<>();
         // For loop creates a TDItem for each field with optional name until length of typeAr, null if typeAr is too short
         for (int i = 0; i < typeAr.length; i++) {
             items.add(new TDItem(typeAr[i], (fieldAr != null && i < fieldAr.length) ? fieldAr[i] : null));
@@ -86,7 +86,7 @@ public class TupleDesc implements Serializable {
      * @return the number of fields in this TupleDesc
      */
     public int numFields() {
-        return items.size(); // Returns size of list
+        return this.items.size(); // Returns size of list
     }
 
     /**
@@ -104,7 +104,7 @@ public class TupleDesc implements Serializable {
             throw new NoSuchElementException();
         }
         // Returns field name at index i of list items
-        return items.get(i).fieldName;
+        return this.items.get(i).fieldName;
     }
 
     /**
@@ -123,7 +123,7 @@ public class TupleDesc implements Serializable {
             throw new NoSuchElementException();
         }
         // Returns field type at index i of list items
-        return items.get(i).fieldType;
+        return this.items.get(i).fieldType;
     }
 
     /**
@@ -213,6 +213,7 @@ public class TupleDesc implements Serializable {
             return false;
         }
         
+        // Typecasting to make o a TupleDesc
         TupleDesc other = (TupleDesc) o;
         // Number of fields aren't the same, return false
         if (this.numFields() != other.numFields()) {
