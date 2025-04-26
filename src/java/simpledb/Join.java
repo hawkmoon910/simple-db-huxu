@@ -132,7 +132,7 @@
 
         @Override
         public OpIterator[] getChildren() {
-            return new OpIterator[] { child1, child2 };
+            return new OpIterator[]{child1, child2};
         }
 
         @Override
