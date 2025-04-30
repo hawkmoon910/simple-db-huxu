@@ -1,0 +1,15 @@
+Feedback for: huxu
+--------------------------------------------------------------
+Total Score (%): 98
+Unit Test Score (out of 15): 32
+System Test Score (out of 6): 4
+Code Score (out of 10): 10
+Writeup Score (out of 10): 8
+--------------------------------------------------------------
+Code feedback (10/10):
+(-0) HeapFile numPages() - use Math.ceil() around file.length()/BufferPool.getPageSize() so that we don't round the number of pages down.
+
+Writeup feedback (8/10):
+(-1) Does not explain what lab was about (high level overview) with enough detail
+(-1) Missing how components work together in addition to individual functions. For instance, the relationship between BufferPool, HeapPage and HeapFile is a core relationship to explain.
+(-0) Please elaborate a bit more on design decisions next time! (talking about why you chose that design for example)
