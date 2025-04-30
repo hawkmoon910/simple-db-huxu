@@ -129,7 +129,7 @@ public class HeapFile implements DbFile {
      */
     public int numPages() {
         // Return number of pages which is length of file divided by size of cache
-        return (int) (file.length() / BufferPool.getPageSize());
+        return (int) Math.ceil(file.length() / BufferPool.getPageSize());
     }
 
     // see DbFile.java for javadocs
