@@ -1,0 +1,15 @@
+0.02 seconds, ran for 5-8 minutes before killing it, 0.06 seconds
+
+This lab focused on implementing key components of a simple database system, particularly around storage and operators.
+The goal was to get hands-on experience with the internal mechanics of a DBMS, including how tuples are stored, retrieved,
+inserted, deleted, and processed using relational operators. This implementation included
+Filter, Predicate, Join, JoinPredicate, IntegerAggregator, StringAggregator, Aggregate, BufferPool, HeapPage, HeapFile, Insert
+and Delete.
+
+A key design decision I made was in the BufferPool eviction policy. I chose Least Recently Used (LRU). For join operations, I stuck with nested-loops join.
+
+One useful unit test that could be added would be testing the handling of page eviction and tuple insertion when the buffer pool is full.
+
+I didn't make changes to the API.
+
+Nothing incomplete or missing.
