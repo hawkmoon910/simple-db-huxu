@@ -164,13 +164,16 @@ public class BufferPool {
      */
     public void insertTuple(TransactionId tid, int tableId, Tuple t)
         throws DbException, IOException, TransactionAbortedException {
-        
+        // Get the DbFile connected to the table ID
         DbFile file = Database.getCatalog().getDatabaseFile(tableId);
+        // Insert the tuple into the table, which returns any pages that were modified
         ArrayList<Page> dirtyPages = file.insertTuple(tid, t);
-
+        // For each dirty page returned
         for (Page p : dirtyPages) {
+            // Mark the page as dirty
             p.markDirty(true, tid);
-            pageCache.put(p.getId(), p); // replaces if already exists
+            // Put the page into the buffer pool (cache), replace any existing version
+            pageCache.put(p.getId(), p);
         }
     }
 
@@ -189,14 +192,18 @@ public class BufferPool {
      */
     public  void deleteTuple(TransactionId tid, Tuple t)
         throws DbException, IOException, TransactionAbortedException {
-        
+        // Get the table ID of the page containing the tuple
         int tableId = t.getRecordId().getPageId().getTableId();
+        // Get the DbFile connected to that table
         DbFile file = Database.getCatalog().getDatabaseFile(tableId);
+        // Delete the tuple from the file, returning any pages that were modified
         ArrayList<Page> dirtyPages = file.deleteTuple(tid, t);
-
+        // For each dirty page returned
         for (Page p : dirtyPages) {
+            // Mark the page as dirty
             p.markDirty(true, tid);
-            pageCache.put(p.getId(), p); // replaces if already exists
+            // Put the page into the buffer pool (cache), replace any existing version
+            pageCache.put(p.getId(), p);
         }
     }
 
@@ -206,8 +213,9 @@ public class BufferPool {
      *     break simpledb if running in NO STEAL mode.
      */
     public synchronized void flushAllPages() throws IOException {
-        
+        // Iterate through all pages currently in the buffer pool
         for (PageId pid : pageCache.keySet()) {
+            // Flush each page
             flushPage(pid);
         }
     }
@@ -221,6 +229,7 @@ public class BufferPool {
         are removed from the cache so they can be reused safely
     */
     public synchronized void discardPage(PageId pid) {
+        // Remove page from buffer pool (cache)
         pageCache.remove(pid);
     }
 
@@ -229,15 +238,19 @@ public class BufferPool {
      * @param pid an ID indicating the page to flush
      */
     private synchronized  void flushPage(PageId pid) throws IOException {
-        
+        // Get the page from the buffer pool
         Page page = pageCache.get(pid);
+        // If the page doesn't exist or isn't dirty, return without flushing
         if (page == null || page.isDirty() == null) {
             return;
         }
-
+        // Get the table ID from the page ID
         int tableId = pid.getTableId();
+        // Fetch the database file for the table
         DbFile file = Database.getCatalog().getDatabaseFile(tableId);
+        // Write the dirty page to disk
         file.writePage(page);
+        // After writing, mark the page as clean
         page.markDirty(false, null);
     }
 
@@ -253,19 +266,26 @@ public class BufferPool {
      * Flushes the page to disk to ensure dirty pages are updated on disk.
      */
     private synchronized  void evictPage() throws DbException {
-
+        // Iterate through all pages in the buffer pool (cache)
         for (PageId pid : pageCache.keySet()) {
+            // Get the page from the buffer pool (cache)
             Page page = pageCache.get(pid);
+            // Check if the page is clean
             if (page.isDirty() == null) {
                 try {
+                    // Flush the clean page to disk
                     flushPage(pid);
                 } catch (IOException e) {
+                    // If an IO error occurs, throw exception
                     throw new DbException("IO error during eviction: " + e.getMessage());
                 }
+                // Discard the page from the buffer pool
                 discardPage(pid);
+                // Exit
                 return;
             }
         }
+        // If all pages are dirty, throw exception
         throw new DbException("All pages are dirty; cannot evict clean page.");
     }
 

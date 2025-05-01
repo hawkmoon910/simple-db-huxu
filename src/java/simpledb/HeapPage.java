@@ -17,7 +17,9 @@ public class HeapPage implements Page {
     final byte header[];
     final Tuple tuples[];
     final int numSlots;
+    // Boolean if dirty or not
     private boolean dirty;
+    // Transaction id for dirty
     private TransactionId dirtyTid;
 
     byte[] oldData;
@@ -245,21 +247,25 @@ public class HeapPage implements Page {
      * @param t The tuple to delete
      */
     public void deleteTuple(Tuple t) throws DbException {
+        // Retrieve the RecordId of the tuple to be deleted
         RecordId rid = t.getRecordId();
+        // Check that the RecordId is not null and matches this page's ID
+        if (rid == null || !rid.getPageId().equals(this.pid)) {
+            // Throw exception
+            throw new DbException("Tuple is not on this page.");
+        }
+        // Get the slot number from the RecordId
+        int slot = rid.getTupleNumber();
+        // Verify that the slot is used, contains a tuple, and matches the given tuple
+        if (!isSlotUsed(slot) || tuples[slot] == null || !tuples[slot].equals(t)) {
+            // Throw exception
+            throw new DbException("Tuple slot is already empty or mismatched.");
+        }
 
-    if (rid == null || !rid.getPageId().equals(this.pid)) {
-        throw new DbException("Tuple is not on this page.");
-    }
-
-    int slot = rid.getTupleNumber();
-
-    if (!isSlotUsed(slot) || tuples[slot] == null || !tuples[slot].equals(t)) {
-        throw new DbException("Tuple slot is already empty or mismatched.");
-    }
-
-    // Remove tuple and clear slot
-    tuples[slot] = null;
-    markSlotUsed(slot, false);
+        // Remove tuple from slot
+        tuples[slot] = null;
+        // Mark the slot as unused
+        markSlotUsed(slot, false);
     }
 
     /**
@@ -270,24 +276,27 @@ public class HeapPage implements Page {
      * @param t The tuple to add.
      */
     public void insertTuple(Tuple t) throws DbException {
-        // Ensure schema matches
+    // Check that the tuple's schema matches the page's schema
     if (!t.getTupleDesc().equals(td)) {
+        // Throws exception if there is schema mismatch
         throw new DbException("TupleDesc mismatch.");
     }
 
-    // Find first empty slot
+    // Iterate over each slot in the page to find the first empty slot
     for (int i = 0; i < numSlots; i++) {
         if (!isSlotUsed(i)) {
             // Store tuple
             tuples[i] = t;
+            // Marks slot as used
             markSlotUsed(i, true);
             // Set RecordId to this page and slot
             t.setRecordId(new RecordId(pid, i));
+            // Exit
             return;
         }
     }
 
-    // If no slot was free
+    // If no slot was empty, throw exception
     throw new DbException("No empty slots available.");
     }
 
@@ -296,7 +305,9 @@ public class HeapPage implements Page {
      * that did the dirtying
      */
     public void markDirty(boolean dirty, TransactionId tid) {
+        // Set the dirty flag for this page
         this.dirty = dirty;
+        // If dirty is true, store the transaction that dirtied the page; otherwise, set to null
         this.dirtyTid = dirty ? tid : null;
     }
 
@@ -304,6 +315,7 @@ public class HeapPage implements Page {
      * Returns the tid of the transaction that last dirtied this page, or null if the page is not dirty
      */
     public TransactionId isDirty() {
+        // Return the ID of the transaction that dirtied the page, or null if not dirty
         return dirty ? dirtyTid : null;   
     }
 
@@ -340,14 +352,16 @@ public class HeapPage implements Page {
      * Abstraction to fill or clear a slot on this page.
      */
     private void markSlotUsed(int i, boolean value) {
+        // Find byte index that contains the bit
         int byteIndex = i / 8;
+        // Find bit position in byte aka offset
         int bitOffset = i % 8;
 
         if (value) {
-            // Set bit to 1
+            // Set bit to 1 to mark as used
             header[byteIndex] |= (1 << bitOffset);
         } else {
-            // Clear bit to 0
+            // Clear bit to 0 to mark as unused
             header[byteIndex] &= ~(1 << bitOffset);
         }
     }

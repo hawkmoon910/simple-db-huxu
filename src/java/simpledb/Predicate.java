@@ -8,12 +8,12 @@ import java.io.Serializable;
 public class Predicate implements Serializable {
 
     private static final long serialVersionUID = 1L;
-
-    private int field;
-
-    private Op op;
-
-    private Field operand;
+    // Field number of passed in tuples to compare against
+    private final int field;
+    // Operation to use for comparison
+    private final Op op;
+    // Field value to compare passed in tuples to
+    private final Field operand;
 
     /** Constants used for return codes in Field.compare */
     public enum Op implements Serializable {
@@ -61,8 +61,11 @@ public class Predicate implements Serializable {
      *            field value to compare passed in tuples to
      */
     public Predicate(int field, Op op, Field operand) {
+        // Stores field number of passed
         this.field = field;
+        // Stores operation
     	this.op = op;
+        // Stores field value
     	this.operand = operand;
     }
 
@@ -71,6 +74,7 @@ public class Predicate implements Serializable {
      */
     public int getField()
     {
+        // Returns field
         return this.field;
     }
 
@@ -79,6 +83,7 @@ public class Predicate implements Serializable {
      */
     public Op getOp()
     {
+        // Returns operator
         return this.op;
     }
     
@@ -87,6 +92,7 @@ public class Predicate implements Serializable {
      */
     public Field getOperand()
     {
+        // Returns operand
         return this.operand;
     }
     
@@ -101,6 +107,7 @@ public class Predicate implements Serializable {
      * @return true if the comparison is true, false otherwise.
      */
     public boolean filter(Tuple t) {
+        // Retrieves the field at index field in the tuple and compares it to operand using op
         return t.getField(field).compare(op, operand);
     }
 
@@ -109,6 +116,7 @@ public class Predicate implements Serializable {
      * operand_string"
      */
     public String toString() {
+        // Returns string description of the predicate
         return "f = " + Integer.toString(field) + " op = " + op.toString() + " operand = " + operand.toString();
     }
 }

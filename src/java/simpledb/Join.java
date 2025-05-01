@@ -8,10 +8,13 @@
     public class Join extends Operator {
 
         private static final long serialVersionUID = 1L;
-
-        private JoinPredicate p;
+        // The predicate to use to join the children
+        private final JoinPredicate p;
+        // Iterator for the left (outer) relation to join
         private OpIterator child1;
+        // Iterator for the right (inner) relation to join
         private OpIterator child2;
+        // Current tuple from left child being joined
         private Tuple currentLeft;
 
         /**
@@ -26,12 +29,16 @@
          *            Iterator for the right(inner) relation to join
          */
         public Join(JoinPredicate p, OpIterator child1, OpIterator child2) {
+            // Stores predicate
             this.p = p;
+            // Stores iterator for child1
             this.child1 = child1;
+            // Stores iterator for child2
             this.child2 = child2;
         }
 
         public JoinPredicate getJoinPredicate() {
+            // Returns join predicate
             return this.p;
         }
 
@@ -41,6 +48,7 @@
          *       alias or table name.
          * */
         public String getJoinField1Name() {
+            // Returns field name of first (left) join field
             return child1.getTupleDesc().getFieldName(p.getField1());
         }
 
@@ -50,6 +58,7 @@
          *       alias or table name.
          * */
         public String getJoinField2Name() {
+            // Returns field name of second (right) join field
             return child2.getTupleDesc().getFieldName(p.getField2());
         }
 
@@ -58,27 +67,39 @@
          *      implementation logic.
          */
         public TupleDesc getTupleDesc() {
+            // Returns the merge of the two children's TupleDescs
             return TupleDesc.merge(child1.getTupleDesc(), child2.getTupleDesc());
         }
 
         public void open() throws DbException, NoSuchElementException,
                 TransactionAbortedException {
+            // Call open on the parent class
             super.open();
+            // Open left child
             child1.open();
+            // Open right child
             child2.open();
+            // Set current left tuple to null 
             currentLeft = null;
         }
 
         public void close() {
+            // Call close on the parent class
             super.close();
+            // Close left child
             child1.close();
+            // Close right child
             child2.close();
+            // Set current left tuple to null 
             currentLeft = null;
         }
 
         public void rewind() throws DbException, TransactionAbortedException {
+            // Rewind left child
             child1.rewind();
+            // Rewind right child
             child2.rewind();
+            // Set current left tuple to null
             currentLeft = null;
         }
 
@@ -101,43 +122,60 @@
          * @see JoinPredicate#filter
          */
         protected Tuple fetchNext() throws TransactionAbortedException, DbException {
+            // Cache the merged TupleDesc once for reuse
+            TupleDesc mergedDesc = getTupleDesc();
+
+            // While true
             while (true) {
+                // If no current left tuple, fetch the next one from child1
                 if (currentLeft == null) {
-                    if (child1.hasNext()) {
-                        currentLeft = child1.next();
-                        child2.rewind();
-                    } else {
+                    // If no tuples, left done
+                    if (!child1.hasNext()) {
                         return null;
                     }
+                    // Load next left tuple
+                    currentLeft = child1.next();
+                    // Rewind child2 for new comparisons
+                    child2.rewind();
                 }
 
+                // Iterate over all right tuples for the current left tuple
                 while (child2.hasNext()) {
+                    // Get next right tuple
                     Tuple right = child2.next();
+                    // If predicate passes
                     if (p.filter(currentLeft, right)) {
-                        Tuple merged = new Tuple(getTupleDesc());
+                        // Merge left and right into new result tuple
+                        Tuple merged = new Tuple(mergedDesc);
                         int i = 0;
+                        // Copy fields from left tuple
                         for (int j = 0; j < currentLeft.getTupleDesc().numFields(); j++) {
                             merged.setField(i++, currentLeft.getField(j));
                         }
+                        // Copy fields from right tuple
                         for (int j = 0; j < right.getTupleDesc().numFields(); j++) {
                             merged.setField(i++, right.getField(j));
                         }
+                        // Return joined tuple
                         return merged;
                     }
                 }
-
+                // No match found for currentLeft; move to next left tuple
                 currentLeft = null;
             }
         }
 
         @Override
         public OpIterator[] getChildren() {
+            // Returns the children of this operator
             return new OpIterator[]{child1, child2};
         }
 
         @Override
         public void setChildren(OpIterator[] children) {
+            // Sets child1
             this.child1 = children[0];
+            // Sets child2
             this.child2 = children[1];
         }
 

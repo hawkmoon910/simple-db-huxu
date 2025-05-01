@@ -10,15 +10,15 @@ import java.io.IOException;
 public class Insert extends Operator {
 
     private static final long serialVersionUID = 1L;
-
+    // The transaction running the insert
     private final TransactionId t;
-
+    // The child operator from which to read tuples to be inserted
     private OpIterator child;
-
+    // The table in which to insert tuples
     private final int tableId;
-
+    // Tracks if insert has happened yet
     private boolean insertOrNot;
-
+    // TupleDesc describing the output of this operator
     private final TupleDesc resultDesc;
 
     /**
@@ -36,37 +36,50 @@ public class Insert extends Operator {
      */
     public Insert(TransactionId t, OpIterator child, int tableId)
             throws DbException {
+        // Stores transaction
         this.t = t;
+        // Stores child operator
         this.child = child;
+        // Stores table id
         this.tableId = tableId;
+        // Set insert flag to false
         this.insertOrNot = false;
 
-        // Verify that the child's tuple desc matches the target table's tuple desc
+        // Fetch the tuple description of the target table
         TupleDesc tableTd = Database.getCatalog().getTupleDesc(tableId);
+        // Check if the tuple format of child matches with the target table
         if (!child.getTupleDesc().equals(tableTd)) {
+            // Throw exception
             throw new DbException("TupleDesc mismatch between child and target table.");
         }
 
-        // Define the result tuple descriptor (a single INT field indicating number of inserted records)
+        // Result tuple will contain one field: number of inserted tuples
         this.resultDesc = new TupleDesc(new Type[]{Type.INT_TYPE});
     }
 
     public TupleDesc getTupleDesc() {
+        // Returns the tuple desc
         return this.resultDesc;
     }
 
     public void open() throws DbException, TransactionAbortedException {
+        // Call parent open
         super.open();
+        // Open the child operator
         child.open();
     }
 
     public void close() {
+        // Call parent close
         super.close();
+        // Close the child operator
         child.close();
     }
 
     public void rewind() throws DbException, TransactionAbortedException {
+        // Rewind the child operator
         child.rewind();
+        // Reset insert flag
         insertOrNot = false;
     }
 
@@ -84,41 +97,47 @@ public class Insert extends Operator {
      * @see BufferPool#insertTuple
      */
     protected Tuple fetchNext() throws TransactionAbortedException, DbException {
+        // If insert already happened, return null
         if (insertOrNot) {
             return null;
         }
-
+        // Counter for inserted tuples
         int count = 0;
+        // Get the global buffer pool instance
         BufferPool bufferPool = Database.getBufferPool();
-
+        // Loop through all tuples from child operator
         while (child.hasNext()) {
-            Tuple temp = child.next();
+            // Get next tuple
+            Tuple nextTuple = child.next();
             try {
-                bufferPool.insertTuple(t, tableId, temp);
+                // Insert tuple into the table using BufferPool
+                bufferPool.insertTuple(t, tableId, nextTuple);
+                // Increment inserted tuple count
                 count++;
             } catch (IOException e) {
+                // Throw exception if insert error
                 throw new DbException("IO error during insert: " + e.getMessage());
             }
         }
-
+        // Set flag so we don’t insert again
         insertOrNot = true;
-
-        // Return a single-field tuple with the count of inserted records
+        // Create a new tuple to hold the result count
         Tuple result = new Tuple(resultDesc);
+        // Set the first field to the number of inserted tuples
         result.setField(0, new IntField(count));
+        // Return result
         return result;
     }
 
     @Override
     public OpIterator[] getChildren() {
+        // Return child in array form
         return new OpIterator[]{child};
     }
 
     @Override
     public void setChildren(OpIterator[] children) {
-        if (children.length != 1) {
-            throw new IllegalArgumentException("Expected exactly one child.");
-        }
+        // Update the child operator
         this.child = children[0];
     }
 }
