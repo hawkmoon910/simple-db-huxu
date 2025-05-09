@@ -33,6 +33,9 @@ public class BufferPool {
     // ConcurrentHashMap used for thread-safe page cache
     private final ConcurrentHashMap<PageId, Page> pageCache;
 
+    // LockManager to manage locks
+    private final LockManager lockManager = new LockManager();
+
     /**
      * Creates a BufferPool that caches up to numPages pages.
      *
@@ -77,6 +80,9 @@ public class BufferPool {
     public  Page getPage(TransactionId tid, PageId pid, Permissions perm)
         throws TransactionAbortedException, DbException {
         
+        // Acquires lock
+        lockManager.acquireLock(tid, pid, perm);
+        
         // Try fetching the page from the cache
         Page page = pageCache.get(pid);
 
@@ -113,8 +119,8 @@ public class BufferPool {
      * @param pid the ID of the page to unlock
      */
     public  void releasePage(TransactionId tid, PageId pid) {
-        // some code goes here
-        // not necessary for lab1|lab2
+        // Releases the lcok
+        lockManager.releaseLock(tid, pid);
     }
 
     /**
@@ -123,15 +129,14 @@ public class BufferPool {
      * @param tid the ID of the transaction requesting the unlock
      */
     public void transactionComplete(TransactionId tid) throws IOException {
-        // some code goes here
-        // not necessary for lab1|lab2
+        // Calls transactionComplete with true for commit, so it actually releases all locks
+        transactionComplete(tid, true);
     }
 
     /** Return true if the specified transaction has a lock on the specified page */
     public boolean holdsLock(TransactionId tid, PageId p) {
-        // some code goes here
-        // not necessary for lab1|lab2
-        return false;
+        // Checks if lockManager has a lock
+        return lockManager.holdsLock(tid, pid);
     }
 
     /**
@@ -143,8 +148,8 @@ public class BufferPool {
      */
     public void transactionComplete(TransactionId tid, boolean commit)
         throws IOException {
-        // some code goes here
-        // not necessary for lab1|lab2
+        // Releases all locks (flush)
+        lockManager.releaseAllLocks(tid);
     }
 
     /**
