@@ -136,7 +136,7 @@ public class HeapFile implements DbFile {
      */
     public int numPages() {
         // Return number of pages which is length of file divided by size of cache
-        return (int) Math.ceil(file.length() / BufferPool.getPageSize());
+        return (int) Math.ceil((double) file.length() / BufferPool.getPageSize());
     }
 
     // see DbFile.java for javadocs
@@ -162,8 +162,10 @@ public class HeapFile implements DbFile {
                 return modifiedPages;
             }
         }
+        // Sets newPageNumber to numPages to avoid issues
+        int newPageNumber = numPages();
         // No empty slots, create a new page
-        HeapPageId newPid = new HeapPageId(getId(), numPages());
+        HeapPageId newPid = new HeapPageId(getId(), newPageNumber);
          // Generate an empty byte array for the new page
         byte[] emptyData = HeapPage.createEmptyPageData();
         // Create a new HeapPage with said empty data
@@ -175,7 +177,7 @@ public class HeapFile implements DbFile {
         // Open file in read-write mode to write the new page
         try (RandomAccessFile raf = new RandomAccessFile(file, "rw")) {
             // Move to the end of the file
-            raf.seek((long) numPages() * BufferPool.getPageSize());
+            raf.seek((long) newPageNumber * BufferPool.getPageSize());
             // Write new page data to file
             raf.write(newPage.getPageData());
         }
