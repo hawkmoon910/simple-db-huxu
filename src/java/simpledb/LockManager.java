@@ -1,3 +1,7 @@
+package simpledb;
+
+import java.util.*;
+
 public class LockManager {
     private enum LockType { SHARED, EXCLUSIVE }
 
@@ -87,22 +91,14 @@ public class LockManager {
         if (locks == null || locks.isEmpty()) return true;
 
         for (Lock l : locks) {
-            if (l.tid.equals(tid)) {
-                if (l.type == LockType.SHARED && desired == LockType.EXCLUSIVE && locks.size() == 1) {
-                    return true; // Upgrade
-                }
-                if (l.type == desired) {
-                    return true; // Already has it
+            if (!l.tid.equals(tid)) {
+                // Another transaction holds a conflicting lock
+                if (desired == LockType.EXCLUSIVE || l.type == LockType.EXCLUSIVE) {
+                    return false;
                 }
             }
         }
 
-        if (desired == LockType.SHARED) {
-            // Grant shared if no exclusive
-            return locks.stream().noneMatch(l -> l.type == LockType.EXCLUSIVE);
-        } else {
-            // Exclusive: only if no other locks
-            return false;
-        }
+        return true;
     }
 }
