@@ -1,0 +1,20 @@
+Feedback for: huxu
+--------------------------------------------------------------
+Total Score (%): 92.5
+Unit Test Score (out of 15): 37
+System Test Score (out of 6): 24
+Code Score (out of 10): 9.0
+Writeup Score (out of 10): 4.5
+--------------------------------------------------------------
+Code feedback (9/10):
+(-0): In HeapFile insertTuple(), if the HeapFile doesn't have space for another tuple, you should create a new page, write it to disk, and then fetch the page from BufferPool to insert the tuple onto instead of creating a new page, inserting the tuple, and then writing the page to the HeapFile. As it is currently written, a dirty page from an uncommitted transaction is written to disk, which is against the NO STEAL policy we implement in Lab 3. 
+(-1): Before adding a page to BufferPool in insertTuple or deleteTuple, make sure to check whether the buffer pool is full and needs to evict a page. Remember another transaction could evict a page and fill up the BufferPool, so you might need to evict a page before re-adding the page to the BufferPool.
+(-0): In HeapPage, in deleteTuple(), on line 260, you do not need to check the last two conditions in the if check. I think this is because when markSlotUsed() is called, if the slot is being marked as empty/not used, you don't also set the tuple[slot] = null. So it's possible that a slot is marked as not used but there is still actually a tuple there in the array.
+
+Writeup feedback(4.5/10):
+(-3) Missing description of lab components (should elaborate about what each of the components do instead of only listing the file names)
+(-2) Missing how components work together. For instance:
+- How the Filter, Join and Predicate classes interact with each other.
+- How HeapPage/File relate to inserting/deleting tuples
+(-0.5) Design choices are mentioned, but no reasoning or pros and cons of the approach are discussed.
+
