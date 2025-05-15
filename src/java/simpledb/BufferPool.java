@@ -280,9 +280,11 @@ public class BufferPool {
      */
     private synchronized  void evictPage() throws DbException {
         // Iterate through all pages in the buffer pool (cache)
-        for (PageId pid : pageCache.keySet()) {
-            // Get the page from the buffer pool (cache)
-            Page page = pageCache.get(pid);
+        for (Map.Entry<PageId, Page> entry : pageCache.entrySet()) {
+            // Get the page id
+            PageId pid = entry.getKey();
+            // Get the page
+            Page page = entry.getValue();
             // Check if the page is clean
             if (page.isDirty() == null) {
                 try {
