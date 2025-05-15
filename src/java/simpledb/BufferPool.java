@@ -148,7 +148,40 @@ public class BufferPool {
      */
     public void transactionComplete(TransactionId tid, boolean commit)
         throws IOException {
-        // Releases all locks (flush)
+        // List to keep track of all pages modified by this transaction
+        List<PageId> pagesToProcess = new ArrayList<>();
+        // Iterate over all pages in the buffer pool
+        for (Map.Entry<PageId, Page> entry : pageCache.entrySet()) {
+            // Get page
+            Page page = entry.getValue();
+            // Check if the page was dirtied by this transaction
+            if (tid.equals(page.isDirty())) {
+                // Add page id to list
+                pagesToProcess.add(entry.getKey());
+            }
+        }
+        // Process all dirty pages associated with this transaction
+        for (PageId pid : pagesToProcess) {
+            if (commit) {
+                // Flush to disk
+                flushPage(pid);
+                // Mark as clean
+                Page page = pageCache.get(pid);
+                if (page != null) {
+                    page.markDirty(false, null);
+                }
+            } else {
+                // Abort
+                // Get the DbFile corresponding to the page
+                DbFile file = Database.getCatalog().getDatabaseFile(pid.getTableId());
+                // Read the clean version of the page from disk
+                Page cleanPage = file.readPage(pid);
+                // Replace the dirty page in the buffer pool with the clean one
+                pageCache.put(pid, cleanPage);
+            }
+        }
+
+        // Release all locks regardless of commit/abort
         lockManager.releaseAllLocks(tid);
     }
 
