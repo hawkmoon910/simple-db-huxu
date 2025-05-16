@@ -37,7 +37,7 @@ Deadlock Detection Policy:
 I chose a waits-for graph approach:
 Every time a transaction waits, I track the transactions it’s waiting for.
 Before actually waiting, I check for cycles in the graph using DFS.
-If a cycle is found, the requesting transaction is aborted immediately.
+If a cycle is found, the requesting transaction is aborted.
 This approach is simple, avoids starvation, and reacts quickly to potential deadlocks.
 
 NO STEAL Policy:
