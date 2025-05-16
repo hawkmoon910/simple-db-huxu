@@ -1,0 +1,53 @@
+This lab focused on building concurrency control in a database by implementing proper locking, transaction management, and deadlock handling.
+The goal was to ensure ACID properties for concurrent transactions.
+
+The core components I implemented were:
+
+LockManager: This module tracks which transactions hold which locks on which pages. I implemented support for both shared (read) and exclusive (write) locks.
+It ensures that multiple transactions can read the same page concurrently but writing is exclusive.
+
+Lock Acquisition: I implemented logic that blocks a transaction when it can't acquire a lock due to conflict and makes it wait until the lock is available.
+Lock upgrades (from shared to exclusive) were also handled.
+
+Deadlock Detection: When a transaction waits for a lock, I record which transactions it is waiting on by constructing a waits-for graph.
+I then run a cycle detection (DFS) to check if allowing the wait would cause a deadlock. If a cycle is detected, the transaction is aborted immediately to resolve the deadlock.
+
+Page Eviction (NO STEAL policy): I modified the eviction logic to never evict dirty pages. If all pages are dirty, I throw a DbException because evicting a dirty page before a commit would break atomicity.
+
+Transaction Completion: I implemented transactionComplete() to handle both commit and abort. On commit, I flush all dirty pages that the transaction modified to disk.
+On abort, I discard dirty pages and reload clean versions from disk. In both cases, I also release all locks held by the transaction.
+
+Overall, this lab helped me understand how real databases coordinate concurrent transactions safely.
+
+A useful test to add would be a deadlock scenario with at least three transactions, each holding one lock and waiting on another. For example:
+
+T1 locks P1, then requests P2
+
+T2 locks P2, then requests P3
+
+T3 locks P3, then requests P1 → deadlock cycle: T1 → T2 → T3 → T1
+
+The test would assert that one of the transactions is aborted with a TransactionAbortedException, and the system recovers cleanly afterward.
+
+Design Decisions:
+Locking Granularity:
+I used page-level locking, meaning all locks are granted at the level of a PageId. This is simpler than finer-grained locking.
+
+Deadlock Detection Policy:
+I chose a waits-for graph approach:
+Every time a transaction waits, I track the transactions it’s waiting for.
+Before actually waiting, I check for cycles in the graph using DFS.
+If a cycle is found, the requesting transaction is aborted immediately.
+This approach is simple, avoids starvation, and reacts quickly to potential deadlocks.
+
+NO STEAL Policy:
+I enforced a strict NO STEAL policy by modifying the eviction logic to skip dirty pages. If all pages are dirty, eviction fails with an exception.
+This ensures that uncommitted changes are never written to disk.
+
+Lock Cleanup
+After a transaction completes (commit or abort), I remove all locks it held and clean up any entries in the waits-for graph.
+This prevents memory leaks and ensures that no future transactions are mistakenly blocked by inactive ones.
+
+I didn't make changes to the API.
+
+Nothing incomplete or missing.
