@@ -162,14 +162,19 @@ public class BufferPool {
         }
         // Process all dirty pages associated with this transaction
         for (PageId pid : pagesToProcess) {
+            Page page = pageCache.get(pid);
+            if (page == null) {
+                continue;
+            }
             if (commit) {
-                // Flush to disk
-                flushPage(pid);
-                // Mark as clean
-                Page page = pageCache.get(pid);
-                if (page != null) {
-                    page.markDirty(false, null);
-                }
+                // Log
+                Database.getLogFile().logWrite(tid, page.getBeforeImage(), page);
+                // Ensure log record is persisted
+                Database.getLogFile().force();
+                // Rollback point
+                page.setBeforeImage();
+                // Mark as clean if needed
+                page.markDirty(false, null);
             } else {
                 // Abort
                 // Get the DbFile corresponding to the page
@@ -285,19 +290,21 @@ public class BufferPool {
      */
     private synchronized  void flushPage(PageId pid) throws IOException {
         // Get the page from the buffer pool
-        Page page = pageCache.get(pid);
+        Page p = pageCache.get(pid);
         // If the page doesn't exist or isn't dirty, return without flushing
-        if (page == null || page.isDirty() == null) {
+        if (p == null || p.isDirty() == null) {
             return;
         }
-        // Get the table ID from the page ID
-        int tableId = pid.getTableId();
-        // Fetch the database file for the table
-        DbFile file = Database.getCatalog().getDatabaseFile(tableId);
-        // Write the dirty page to disk
-        file.writePage(page);
+        TransactionId dirtier = p.isDirty();
+        // Only log if the transaction is still active
+        if (dirtier != null && Database.getBufferPool().holdsLock(dirtier, pid)) {
+            Database.getLogFile().logWrite(dirtier, p.getBeforeImage(), p);
+            Database.getLogFile().force();
+        }
+        // Write to disk
+        Database.getCatalog().getDatabaseFile(pid.getTableId()).writePage(p);
         // After writing, mark the page as clean
-        page.markDirty(false, null);
+        p.markDirty(false, null);
     }
 
     /** Write all pages of the specified transaction to disk.
@@ -318,23 +325,21 @@ public class BufferPool {
             PageId pid = entry.getKey();
             // Get the page
             Page page = entry.getValue();
-            // Check if the page is clean
-            if (page.isDirty() == null) {
-                try {
-                    // Flush the clean page to disk
-                    flushPage(pid);
-                } catch (IOException e) {
-                    // If an IO error occurs, throw exception
-                    throw new DbException("IO error during eviction: " + e.getMessage());
-                }
+
+            try {
+                // Flush the clean page to disk
+                flushPage(pid);
                 // Discard the page from the buffer pool
                 discardPage(pid);
                 // Exit
                 return;
+            } catch (IOException e) {
+                // If an IO error occurs, throw exception
+                throw new DbException("IO error during eviction: " + e.getMessage());
             }
         }
-        // If all pages are dirty, throw exception
-        throw new DbException("All pages are dirty; cannot evict clean page.");
+        // throw exception
+        throw new DbException("All pages could not be evicted.");
     }
 
 }
