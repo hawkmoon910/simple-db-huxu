@@ -464,10 +464,51 @@ public class LogFile {
     public void rollback(TransactionId tid)
         throws NoSuchElementException, IOException {
         synchronized (Database.getBufferPool()) {
-            synchronized(this) {
+            synchronized (this) {
                 preAppend();
-                // some code goes here
+                rollbackHelper(tid.getId());
             }
+        }
+    }
+
+    // Private rollback method that does the rollbacks with long tid
+    private void rollbackHelper(long tid)
+        throws NoSuchElementException, IOException {
+        // Get the starting offset for the transaction
+        Long startOffset = tidToFirstLogRecord.get(tid);
+        if (startOffset == null) {
+            throw new NoSuchElementException("No BEGIN record found for transaction " + tid);
+        }
+
+        long current = raf.length(); // start scanning from end
+        while (current > startOffset) {
+            // move to position before the start of the previous record
+            raf.seek(current - LONG_SIZE);
+            long recordStart = raf.readLong();
+            raf.seek(recordStart);
+            
+            int recordType = raf.readInt();
+            long recordTid = raf.readLong();
+
+            if (recordTid != tid) {
+                current = recordStart;
+                continue;
+            }
+
+            if (recordType == UPDATE_RECORD) {
+                // Read before-image and after-image
+                Page before = readPageData(raf);
+                Page after = readPageData(raf); // we ignore after-image
+
+                // Write before-image back to disk
+                DbFile file = Database.getCatalog().getDatabaseFile(before.getId().getTableId());
+                file.writePage(before);
+
+                // Remove from buffer pool
+                Database.getBufferPool().discardPage(before.getId());
+            }
+
+            current = recordStart;
         }
     }
 
@@ -493,9 +534,70 @@ public class LogFile {
         synchronized (Database.getBufferPool()) {
             synchronized (this) {
                 recoveryUndecided = false;
-                // some code goes here
+                Set<Long> committed = new HashSet<>();
+                Set<Long> active = new HashSet<>();
+                Map<Long, List<Long>> updateOffsets = new HashMap<>();
+                raf.seek(0);
+                long checkpointOffset = raf.readLong(); // offset 0 stores checkpoint ptr
+                long start = (checkpointOffset > 0) ? checkpointOffset : raf.getFilePointer();
+                raf.seek(start);
+
+                // 2. First pass: scan forward from checkpoint (or beginning)
+                while (raf.getFilePointer() < raf.length()) {
+                    long currentOffset = raf.getFilePointer();
+                    int recordType;
+                    try {
+                        recordType = raf.readInt();
+                    } catch (EOFException e) {
+                        break;
+                    }
+                    if (recordType == BEGIN_RECORD) {
+                        long tid = raf.readLong();
+                        active.add(tid);
+                    } else if (recordType == UPDATE_RECORD) {
+                        long tid = raf.readLong();
+                        updateOffsets.computeIfAbsent(tid, k -> new ArrayList<>()).add(currentOffset);
+                        readPageData(raf); // before image
+                        readPageData(raf); // after image
+                    } else if (recordType == COMMIT_RECORD) {
+                        long tid = raf.readLong();
+                        committed.add(tid);
+                        active.remove(tid);
+                    } else if (recordType == ABORT_RECORD) {
+                        long tid = raf.readLong();
+                        active.remove(tid);
+                    } else if (recordType == CHECKPOINT_RECORD) {
+                        int numTxns = raf.readInt();
+                        for (int i = 0; i < numTxns; i++) {
+                            raf.readLong();
+                            raf.readLong();
+                        }
+                    } else {
+                        throw new IOException("Unknown record type " + recordType + " at offset " + currentOffset);
+                    }
+                }
+
+                // 3. REDO: for all committed transactions, redo their updates in log order
+                for (long tid : committed) {
+                    List<Long> updates = updateOffsets.get(tid);
+                    if (updates == null) continue;
+                    for (long uOffset : updates) {
+                        raf.seek(uOffset);
+                        int recordType = raf.readInt();
+                        long id = raf.readLong();
+                        assert recordType == UPDATE_RECORD && id == tid;
+                        readPageData(raf);
+                        Page after = readPageData(raf);
+                        Database.getCatalog().getDatabaseFile(after.getId().getTableId()).writePage(after);
+                    }
+                }
+
+                // 4. UNDO: for all uncommitted transactions, call rollback
+                for (long tid : active) {
+                    rollbackHelper(tid);
+                }
             }
-         }
+        }
     }
 
     /** Print out a human readable represenation of the log */
