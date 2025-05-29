@@ -486,10 +486,8 @@ public class LogFile {
             raf.seek(current - LONG_SIZE);
             long recordStart = raf.readLong();
             raf.seek(recordStart);
-            
             int recordType = raf.readInt();
             long recordTid = raf.readLong();
-
             if (recordTid != tid) {
                 current = recordStart;
                 continue;
@@ -498,7 +496,7 @@ public class LogFile {
             if (recordType == UPDATE_RECORD) {
                 // Read before-image and after-image
                 Page before = readPageData(raf);
-                Page after = readPageData(raf); // we ignore after-image
+                Page after = readPageData(raf);
 
                 // Write before-image back to disk
                 DbFile file = Database.getCatalog().getDatabaseFile(before.getId().getTableId());
@@ -551,51 +549,73 @@ public class LogFile {
                     } catch (EOFException e) {
                         break;
                     }
-                    if (recordType == BEGIN_RECORD) {
-                        long tid = raf.readLong();
-                        active.add(tid);
-                    } else if (recordType == UPDATE_RECORD) {
-                        long tid = raf.readLong();
-                        updateOffsets.computeIfAbsent(tid, k -> new ArrayList<>()).add(currentOffset);
-                        readPageData(raf); // before image
-                        readPageData(raf); // after image
-                    } else if (recordType == COMMIT_RECORD) {
-                        long tid = raf.readLong();
-                        committed.add(tid);
-                        active.remove(tid);
-                    } else if (recordType == ABORT_RECORD) {
-                        long tid = raf.readLong();
-                        active.remove(tid);
-                    } else if (recordType == CHECKPOINT_RECORD) {
-                        int numTxns = raf.readInt();
-                        for (int i = 0; i < numTxns; i++) {
-                            raf.readLong();
-                            raf.readLong();
-                        }
-                    } else {
-                        throw new IOException("Unknown record type " + recordType + " at offset " + currentOffset);
+                    long tid = raf.readLong();
+                    switch (recordType) {
+                        case BEGIN_RECORD:
+                            active.add(tid);
+                            tidToFirstLogRecord.put(tid, currentOffset);
+                            break;
+
+                        case COMMIT_RECORD:
+                            committed.add(tid);
+                            active.remove(tid);
+                            break;
+
+                        case ABORT_RECORD:
+                            active.remove(tid);
+                            break;
+
+                        case UPDATE_RECORD:
+                            // remember this update for redo
+                            updateOffsets.computeIfAbsent(tid, k->new ArrayList<>()).add(currentOffset);
+                            // consume before‐ and after‐images
+                            readPageData(raf);
+                            readPageData(raf);
+                            break;
+
+                        case CHECKPOINT_RECORD:
+                            // we wrote a dummy tid = -1, so tid is ignored
+                            int n = raf.readInt();
+                            for (int i = 0; i < n; i++) {
+                                raf.readLong(); // txn id
+                                raf.readLong(); // its first‐record offset
+                            }
+                            break;
+
+                        default:
+                            throw new IOException("Unknown record type " + recordType + " at offset " + currentOffset);
                     }
+
+                    // **VERY IMPORTANT**: skip the record‐footer pointer
+                    raf.readLong();
                 }
 
-                // 3. REDO: for all committed transactions, redo their updates in log order
-                for (long tid : committed) {
-                    List<Long> updates = updateOffsets.get(tid);
-                    if (updates == null) continue;
-                    for (long uOffset : updates) {
-                        raf.seek(uOffset);
-                        int recordType = raf.readInt();
-                        long id = raf.readLong();
-                        assert recordType == UPDATE_RECORD && id == tid;
-                        readPageData(raf);
+                // 3) REDO all committed updates in log order
+                for (long txid : committed) {
+                    List<Long> recs = updateOffsets.get(txid);
+                    if (recs == null) continue;
+                    for (long pos : recs) {
+                        raf.seek(pos);
+                        raf.readInt();         // type
+                        long t = raf.readLong();
+                        assert t == txid;
+                        readPageData(raf);     // skip before
                         Page after = readPageData(raf);
-                        Database.getCatalog().getDatabaseFile(after.getId().getTableId()).writePage(after);
+                        // install the after‐image
+                        DbFile f = Database.getCatalog().getDatabaseFile(after.getId().getTableId());
+                        f.writePage(after);
+                        Database.getBufferPool().discardPage(after.getId());
+                        raf.readLong();        // skip footer
                     }
                 }
 
-                // 4. UNDO: for all uncommitted transactions, call rollback
-                for (long tid : active) {
-                    rollbackHelper(tid);
+                // 4) UNDO any still‐active (i.e. uncommitted) txns
+                for (long txid : active) {
+                    rollbackHelper(txid);
                 }
+
+                // cleanup
+                tidToFirstLogRecord.clear();
             }
         }
     }

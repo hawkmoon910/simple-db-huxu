@@ -169,10 +169,10 @@ public class BufferPool {
             if (commit) {
                 // Log
                 Database.getLogFile().logWrite(tid, page.getBeforeImage(), page);
-                // Ensure log record is persisted
-                Database.getLogFile().force();
                 // Rollback point
                 page.setBeforeImage();
+                // Ensure log record is persisted
+                Database.getLogFile().force();
                 // Mark as clean if needed
                 page.markDirty(false, null);
             } else {
@@ -267,7 +267,10 @@ public class BufferPool {
         // Iterate through all pages currently in the buffer pool
         for (PageId pid : pageCache.keySet()) {
             // Flush each page
-            flushPage(pid);
+            Page p = pageCache.get(pid);
+            if (p != null) {
+                flushPage(pid); // consider removing the dirty check in flushPage
+            }
         }
     }
 
