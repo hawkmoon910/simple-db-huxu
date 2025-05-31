@@ -1,8 +1,10 @@
 # CSE444 Lab 5: Query Optimization
 
-### Due: Thursday, June 11, 2020
+### Due: Thursday, June 12th, 2025 (hard deadline, no late days allowed)
 
-### Project Guidelines: This lab is part of the final project. See the final project instructions [here](https://courses.cs.washington.edu/courses/cse444/20sp/content/Project.html) for details.
+### Project Guidelines: This lab includes a final project report summarizing your work on SimpleDB. Instead of a separate writeup document, put your answers to the exercise questions in section 1 of the final report document. See the final project instructions [here](https://courses.cs.washington.edu/courses/cse444/25sp/content/Project.html)  for details.
+
+##### For Spring 2025: This quarter we will only require the first half of the lab 5 requirements, plus the final project report. You only need to complete the spec through the end of section 2.2.4 (and put the answers to exercises 1 through 4 in your writeup). This means you don't need to pass the QueryTest systemtest or the orderJoinsTest in JoinOptimizerTest.java. You do need to pass the rest of the unit tests described below until section 2.3.
 
 In this lab, you will implement a query optimizer on top of SimpleDB. The main tasks include implementing a selectivity estimation framework and a cost-based optimizer. You have freedom as to exactly what you implement, but we recommend using something similar to the Selinger cost-based optimizer discussed in class.
 
@@ -12,7 +14,7 @@ As with the previous lab, we recommend that you start as early as possible.
 
 ## 1. Getting started
 
-You should begin with the code you submitted for Lab 4. Please note: this lab is not dependent on your implementation of Lab 3 or Lab 4.
+This lab is not dependent on your implementation of Lab 3 or Lab 4. You may begin with your lab 4 code, but if you wish you can also revert to your lab 2 code before pulling the lab 5 contents.
 
 You will need to add these new files to your release. You will do this by performing a `git` pull from the upstream repository that you configured during the previous lab.  
 
@@ -22,7 +24,7 @@ $ git pull upstream lab5
 
 ### 1.1. Implementation hints
 
-We suggest exercises along this document to guide your implementation, but you may find that a different order makes more sense for you. As before, we will grade your assignment by looking at your code and verifying that you have passed the test for the ant targets `test` and `systemtest`. See Section 3.4 for a complete discussion of grading and the tests you will need to pass.
+We suggest exercises along this document to guide your implementation, but you may find that a different order makes more sense for you. As before, we will grade your assignment by looking at your code and verifying that you have passed the test for the ant targets `test` and `systemtest`. (See the top of the document for exceptions for spring 2025.)
 
 Here's a rough outline of one way you might proceed with this lab. More details on these steps are given in Section 2 below.
 
@@ -39,7 +41,7 @@ Recall that the main idea of a cost-based optimizer is to:
 
 In this lab, you will implement code to perform both of these functions.
 
-The optimizer will be invoked from `simpledb/Parser.java`. You may wish to review the [lab 2 parser exercise](https://gitlab.cs.washington.edu/cse444-20sp/simple-db/blob/lab2/README.md) before starting this lab. Briefly, if you have a catalog file `catalog.txt` describing your tables, you can run the parser by typing:
+The optimizer will be invoked from `simpledb/Parser.java`. You may wish to review the [lab 2 parser exercise](https://gitlab.cs.washington.edu/cse444-25sp/simple-db/blob/lab2/README.md) before starting this lab. Briefly, if you have a catalog file `catalog.txt` describing your tables, you can run the parser by typing:
 
 ```
 java -jar dist/simpledb.jar parser catalog.txt
@@ -66,9 +68,11 @@ In the exercises to come, you will implement the methods that help `physicalPlan
 
 **Exercise 1: Parser.java**
 
-When you launch SimpleDB, the entry point of the application is simpledb.Parser.main().
+(You don't need to implement any methods for the Parser, but in this exercise you will describe what happens to a query in SimpleDB. Put the answers to the exercise in your project report as described at the top of the README.)
 
-Starting from that entry point, describe the life of a query from its submission by the user to its execution. For this, list the sequence of methods that are invoked. For each method, describe its primary functions. When you describe the methods that build the physical query plan, **discuss how the plan is built**.
+When you launch SimpleDB, the entry point of the application is simpledb.Parser.main(). 
+
+Starting from that entry point, describe the life of a query from its submission by the user to its execution. For this, list the sequence of methods that are invoked. For each method, describe its primary functions. When you describe the methods that build the physical query plan, **discuss how the plan is built**. Write the answers in your lab 5 writeup document.
 
 To help you, we provide the description of the first few methods. In general, however, it is up to you to decide on the appropriate level of detail for your description. Keep in mind that the goal is to demonstrate your understanding of the _optimizer_.
 
@@ -150,7 +154,7 @@ Estimating `ntups` for a table with one or more selection predicates over it can
 
 ![](lab5-hist.png)
 
-Figure 2: Diagram illustrating the histograms you will implement in Lab 4.
+Figure 2: Diagram illustrating the histograms you will implement in Lab 5.
 
 In the next two exercises, you will code to perform selectivity estimation of joins and filters.
 
@@ -196,6 +200,8 @@ The class `JoinOptimizer.java` includes all of the methods for ordering and comp
 *   Implement `estimateJoinCardinality(LogicalJoinNode j, int card1, int card2, boolean t1pkey, boolean t2pkey)`: This method estimates the number of tuples output by join `j`, given that the left input is size `card1`, the right input is size `card2`, and the flags `t1pkey` and `t2pkey` that indicate whether the left and right (respectively) field is unique (a primary key).
 
 After implementing these methods, you should be able to pass the unit tests in `JoinOptimizerTest.java`, other than `orderJoinsTest`.
+
+##### For spring quarter 2025, the rest of the lab from this point on is optional. Feel free to complete it, but you only need to pass the unit tests described above to get full points on the lab.
 
 ### 2.3 Join Ordering
 
@@ -269,7 +275,7 @@ After implementing this method, you should be able to pass the test `OrderJoinsT
 
 Now that you have a working optimizer, you can study the query plans that your optimizer generates.
 
-In this exercise, we will use the same relational movie database as in 344. The data in this database is from the IMDB website. The database consists of six tables:
+In this exercise, we will use a relational database over movies. The data in this database is from the IMDB website. The database consists of six tables:
 
 ```
 actor (id, fname, lname, gender)
@@ -282,10 +288,10 @@ genre (mid, genre)
 
 We provide you with the following:
 
-* The schema of the IMDB database: [imdb.schema](http://www.cs.washington.edu/education/courses/cse444/20sp/labs/lab5/imdb.schema).
-* A small 1% version of the IMDB database: [sample-0.01.tar.bz2](http://www.cs.washington.edu/education/courses/cse444/20sp/labs/lab5/sample-0.01.tar.bz2). This is the recommended version to use in the assignment. 
-* In case your version of SimpleDB is too slow to handle the 1% dataset, we also provide 0.1% sample: [sample-0.001.tar.bz2](http://www.cs.washington.edu/education/courses/cse444/20sp/labs/lab5/sample-0.001.tar.bz2). 
-* If you are feeling adventurous, here is the 10% version: [sample-0.1.tar.bz2](http://www.cs.washington.edu/education/courses/cse444/20sp/labs/lab5/sample-0.1.tar.bz2). Feel free to use it if you prefer.
+* The schema of the IMDB database: [imdb.schema](http://www.cs.washington.edu/education/courses/cse444/21wi/labs/lab5/imdb.schema).
+* A small 1% version of the IMDB database: [sample-0.01.tar.bz2](http://www.cs.washington.edu/education/courses/cse444/21wi/labs/lab5/sample-0.01.tar.bz2). This is the recommended version to use in the assignment. 
+* In case your version of SimpleDB is too slow to handle the 1% dataset, we also provide 0.1% sample: [sample-0.001.tar.bz2](http://www.cs.washington.edu/education/courses/cse444/21wi/labs/lab5/sample-0.001.tar.bz2). 
+* If you are feeling adventurous, here is the 10% version: [sample-0.1.tar.bz2](http://www.cs.washington.edu/education/courses/cse444/21wi/labs/lab5/sample-0.1.tar.bz2). Feel free to use it if you prefer.
 
 The QueryPlanVisualizer will print the whole query plan for each query. If you would like to see more information about the joins, you can launch SimpleDB with the `-explain` option enabled:
 
@@ -304,19 +310,17 @@ where a.id=c.pid and c.mid=m.mid and m.did=d.id
 and a.lname='Spicer';
 ```
 
-Show the query plan that your optimizer selected. Explain why your optimizer selected that plan. Be careful as the plan may be different for the 1%, 0.1%, and 10% datasets (you do not need to test with all the datasets, just pick one).
+In your writeup, show the query plan that your optimizer selected. Explain why your optimizer selected that plan. Be careful as the plan may be different for the 1%, 0.1%, and 10% datasets (you do not need to test with all the datasets, just pick one).
 
 6.2 Execute another SQL query of your choice over the IMDB database.
 
  Show the query plan that your optimizer generates. Discuss why your optimizer generates that plan. Try to find an interesting SQL query with a combination of joins and selections.
 
-### 2.5 Project Extensions
+### 2.5 Project Extensions 
 
 In this section, we describe several possible extensions to your query optimizer. These are less well defined than the previous exercises but give you a chance to show off your mastery of query optimization!
 
-**As part of the project, we ask you to pick one of the following extensions. (You may pick more than one if you really want to, but there would be no additional credit for more than one.)**
-
-**Make sure to develop unit-tests and system tests for verifying the correctness of your extension.** Please use JUnit when appropriate but feel free to also go beyond JUnit and use scripts if that helps you test some interesting, additional configurations. For the tests that you add, please add them to a separate directory called **test-extensions**.
+**Make sure to develop unit-tests for verifying the correctness of your extension.** Please use JUnit when appropriate but feel free to also go beyond JUnit and use scripts if that helps you test some interesting, additional configurations. For the tests that you add, please add them to a separate directory called **test-extensions**.
 
 1) _Add code to perform more advanced join cardinality estimation_. Rather than using simple heuristics to estimate join cardinality, devise a more sophisticated algorithm.
 One option is to use joint histograms between every pair of attributes `a` and `b` in every pair of tables `t1` and `t2`. The idea is to create buckets of `a`, and for each bucket `A` of `a`, create a histogram of `b` values that co-occur with `a` values in `A`.
@@ -335,21 +339,19 @@ You have now completed this lab. Good work!
 
 ## 3\. Logistics
 
-You must submit your code (see below) as well as the final project report as per the instructions [here](https://courses.cs.washington.edu/courses/cse444/20sp/content/Project.html).
 
-### 3.1\. Collaboration
-
-All CSE 444 labs are to be completed INDIVIDUALLY! However, you may discuss your high-level approach to solving each lab with other students in the class.
-
-### 3.2\. Submitting your assignment
+### 3.1\. Submitting your assignment
 
 
-You may submit your code multiple times; we will use the latest version you submit that arrives before the deadline. Place the write-up in a file called `lab5-answers.txt` or `lab5-answers.pdf` in the top level of your repository.
+You may submit your code multiple times; we will use the latest version you submit that arrives before the deadline. Place the project report called `lab5-writeup.pdf` in the top level of your repository. This should be your final project report, with lab 5 questions contained within section 1.
 
-**Important**: In order for your write-up to be added to the git repo, you need to explicitly add it:
+See here for more details about the format of the `lab5-write.pdf` document:
+https://courses.cs.washington.edu/courses/cse444/25sp/content/Project.html
+
+**Important**: In order for your writeup to be added to the git repo, you need to explicitly add it:
 
 ```sh
-$ git add lab5-answers.txt
+$ git add lab5-writeup.pdf
 ```
 
 You also need to explicitly add any other files you create, such as new `*.java` files.
@@ -368,26 +370,26 @@ You should see something like the following output:
 
 ```sh
 $ ./turnInLab.sh lab5
-[master b155ba0] Lab 3
+[master b155ba0] Lab 5
  1 file changed, 1 insertion(+)
 Deleted tag 'lab5' (was b26abd0)
-To git@gitlab.com:cse444-20sp/simple-db-pirateninja.git
+To git@gitlab.com:cse444-25wi/simple-db-pirateninja.git
  - [deleted]         lab5
 Counting objects: 11, done.
 Delta compression using up to 4 threads.
 Compressing objects: 100% (4/4), done.
 Writing objects: 100% (6/6), 448 bytes | 0 bytes/s, done.
 Total 6 (delta 3), reused 0 (delta 0)
-To git@gitlab.com:cse444-20sp/simple-db-pirateninja.git
+To git@gitlab.com:cse444-25wi/simple-db-pirateninja.git
    ae31bce..b155ba0  master -> master
 Counting objects: 1, done.
 Writing objects: 100% (1/1), 152 bytes | 0 bytes/s, done.
 Total 1 (delta 0), reused 0 (delta 0)
-To git@gitlab.com:cse444-20sp/hsimple-db-pirateninja.git
+To git@gitlab.com:cse444-25wi/hsimple-db-pirateninja.git
  * [new tag]         lab5 -> lab5
 ```
 
-### 3.3\. Submitting a bug
+### 3.2\. Submitting a bug
 
 SimpleDB is a relatively complex piece of code. It is very possible you are going to find bugs, inconsistencies, and bad, outdated, or incorrect documentation, etc.
 
@@ -399,23 +401,15 @@ We ask you, therefore, to do this lab with an adventurous mindset. Don't get mad
 
 You can also post on the class message board if you feel you have run into a bug.
 
-### 3.4 Grading
-
-See the final project instructions [here](https://courses.cs.washington.edu/courses/cse444/20sp/content/Project.html).
-
-50% of your grade will be based on whether or not your code passes the system test suite we will run over it. These tests will be a superset of the tests we have provided. Before handing in your code, you should make sure it produces no errors (passes all of the tests) from both `ant test` and `ant systemtest`.
+### 3.3 Grading
 
 **Important:** Before testing, we will replace your `build.xml`, `HeapFileEncoder.java`, and the entire contents of the `test/` directory with our version of these files! This means you cannot change the format of `.dat` files! You should therefore be careful changing our APIs. This also means you need to test whether your code compiles with our test programs. In other words, during the grading process we will clone your repository, replace the files mentioned above, compile it, and then grade it. It will look roughly like this:
 
 ```sh
-$ git clone git@gitlab.com:cse444-20sp/simple-db-yourname
+$ git clone git@gitlab.com:cse444-25sp/simple-db-yourname
 $ # [replace build.xml and test]
 $ git checkout -- build.xml test\
 $ ant test
 $ ant systemtest
 $ # [additional tests]
 ```
-
-If any of these commands fail, we'll be unhappy, and, therefore, so will your grade.
-
-An additional 50% of your grade will be based on the quality of your writeup and our subjective evaluation of your code.
