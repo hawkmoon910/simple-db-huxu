@@ -537,9 +537,35 @@ public class LogFile {
                 Map<Long, List<Long>> updateOffsets = new HashMap<>();
                 raf.seek(0);
                 long checkpointOffset = raf.readLong(); // offset 0 stores checkpoint ptr
-                long start = (checkpointOffset > 0) ? checkpointOffset : raf.getFilePointer();
-                raf.seek(start);
+                System.out.println("Raw checkpoint pointer read from offset 0 = " + checkpointOffset);
+                if (checkpointOffset <= 0 || checkpointOffset >= raf.length()) {
+                    System.out.println("Invalid or no checkpoint offset found; starting at offset " + checkpointOffset);
+                    checkpointOffset = LONG_SIZE; // start after checkpoint pointer (offset 8)
+                }
+                raf.seek(checkpointOffset);
+                boolean checkpointValid = false;
 
+                if (checkpointOffset != LONG_SIZE) { // only check if not fallback start
+                    try {
+                        int recType = raf.readInt();
+                        if (recType == CHECKPOINT_RECORD) {
+                            checkpointValid = true;
+                            System.out.println("Checkpoint record found at offset " + checkpointOffset);
+                        } else {
+                            System.out.println("No checkpoint record at offset " + checkpointOffset + ", starting from there anyway");
+                        }
+                    } catch (EOFException e) {
+                        System.out.println("EOF reached while verifying checkpoint record");
+                    }
+                } else {
+                    System.out.println("No checkpoint record at offset " + checkpointOffset + ", starting from there anyway");
+                }
+
+                // If checkpoint not valid, fallback start scanning at offset 8
+                if (!checkpointValid) {
+                    checkpointOffset = LONG_SIZE;
+                    raf.seek(checkpointOffset);
+                }
                 // 2. First pass: scan forward from checkpoint (or beginning)
                 while (raf.getFilePointer() < raf.length()) {
                     long currentOffset = raf.getFilePointer();
@@ -549,11 +575,19 @@ public class LogFile {
                     } catch (EOFException e) {
                         break;
                     }
+                    // Validate recordType before proceeding
+                    if (recordType != BEGIN_RECORD && recordType != COMMIT_RECORD &&
+                        recordType != ABORT_RECORD && recordType != UPDATE_RECORD &&
+                        recordType != CHECKPOINT_RECORD) {
+                        System.err.println("Invalid record type " + recordType + " at offset " + currentOffset + ", stopping scan");
+                        break;  // or skip/handle error gracefully
+                    }
                     long tid = raf.readLong();
+                    System.out.println("Record type " + recordType + " at offset " + currentOffset);
                     switch (recordType) {
                         case BEGIN_RECORD:
                             active.add(tid);
-                            tidToFirstLogRecord.put(tid, currentOffset);
+                            tidToFirstLogRecord.putIfAbsent(tid, currentOffset);
                             break;
 
                         case COMMIT_RECORD:
@@ -585,18 +619,20 @@ public class LogFile {
                         default:
                             throw new IOException("Unknown record type " + recordType + " at offset " + currentOffset);
                     }
-
+                    long afterOffset = raf.getFilePointer();
+                    System.out.println("Finished record at offset " + afterOffset);
                     // **VERY IMPORTANT**: skip the record‐footer pointer
                     raf.readLong();
                 }
 
                 // 3) REDO all committed updates in log order
+                System.out.println("Redoing committed transactions: " + committed);
                 for (long txid : committed) {
                     List<Long> recs = updateOffsets.get(txid);
                     if (recs == null) continue;
                     for (long pos : recs) {
                         raf.seek(pos);
-                        raf.readInt();         // type
+                        int type = raf.readInt();
                         long t = raf.readLong();
                         assert t == txid;
                         readPageData(raf);     // skip before
@@ -606,10 +642,12 @@ public class LogFile {
                         f.writePage(after);
                         Database.getBufferPool().discardPage(after.getId());
                         raf.readLong();        // skip footer
+                        System.out.println("REDO applied for tx " + txid + " at offset " + pos);
                     }
                 }
 
                 // 4) UNDO any still‐active (i.e. uncommitted) txns
+                System.out.println("Undoing active (uncommitted) transactions: " + active);
                 for (long txid : active) {
                     rollbackHelper(txid);
                 }
