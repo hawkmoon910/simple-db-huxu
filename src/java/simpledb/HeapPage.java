@@ -256,8 +256,8 @@ public class HeapPage implements Page {
         }
         // Get the slot number from the RecordId
         int slot = rid.getTupleNumber();
-        // Verify that the slot is used
-        if (!isSlotUsed(slot)) {
+        // Verify that the slot is used, contains a tuple, and matches the given tuple
+        if (!isSlotUsed(slot) || tuples[slot] == null || !tuples[slot].equals(t)) {
             // Throw exception
             throw new DbException("Tuple slot is already empty or mismatched.");
         }
