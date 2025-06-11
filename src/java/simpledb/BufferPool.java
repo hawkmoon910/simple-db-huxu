@@ -215,7 +215,7 @@ public class BufferPool {
         for (Page p : dirtyPages) {
             // Mark the page as dirty
             p.markDirty(true, tid);
-            // Eviction Check
+            // Evict if buffer pool is full
             if (pageCache.size() >= numPages && !pageCache.containsKey(p.getId())) {
                 evictPage();
             }
@@ -249,7 +249,7 @@ public class BufferPool {
         for (Page p : dirtyPages) {
             // Mark the page as dirty
             p.markDirty(true, tid);
-            // Eviction Check
+            // Evict if buffer pool is full
             if (pageCache.size() >= numPages && !pageCache.containsKey(p.getId())) {
                 evictPage();
             }

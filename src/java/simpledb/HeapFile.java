@@ -168,20 +168,14 @@ public class HeapFile implements DbFile {
         HeapPageId newPid = new HeapPageId(getId(), newPageNumber);
          // Generate an empty byte array for the new page
         byte[] emptyData = HeapPage.createEmptyPageData();
-        // Create a new HeapPage with said empty data
-        HeapPage newPage = new HeapPage(newPid, emptyData);
-        // Insert the tuple into the new page
-        newPage.insertTuple(t);
-        // Mark the new page as dirty
-        newPage.markDirty(true, tid);
         // Open file in read-write mode to write the new page
         try (RandomAccessFile raf = new RandomAccessFile(file, "rw")) {
             // Move to the end of the file
             raf.seek((long) newPageNumber * BufferPool.getPageSize());
-            // Write new page data to file
-            raf.write(newPage.getPageData());
+            // Write empty data to file
+            raf.write(emptyData);
         }
-        // Fetch the page from BufferPool
+        // Fetch the newly written page from the BufferPool
         HeapPage newPage = (HeapPage) Database.getBufferPool().getPage(tid, newPid, Permissions.READ_WRITE);
         // Insert the tuple into the new page
         newPage.insertTuple(t);
