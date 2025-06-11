@@ -215,6 +215,10 @@ public class BufferPool {
         for (Page p : dirtyPages) {
             // Mark the page as dirty
             p.markDirty(true, tid);
+            // Eviction Check
+            if (pageCache.size() >= numPages && !pageCache.containsKey(p.getId())) {
+                evictPage();
+            }
             // Put the page into the buffer pool (cache), replace any existing version
             pageCache.put(p.getId(), p);
         }
@@ -245,6 +249,10 @@ public class BufferPool {
         for (Page p : dirtyPages) {
             // Mark the page as dirty
             p.markDirty(true, tid);
+            // Eviction Check
+            if (pageCache.size() >= numPages && !pageCache.containsKey(p.getId())) {
+                evictPage();
+            }
             // Put the page into the buffer pool (cache), replace any existing version
             pageCache.put(p.getId(), p);
         }

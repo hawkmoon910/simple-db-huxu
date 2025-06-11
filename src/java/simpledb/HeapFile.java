@@ -181,6 +181,12 @@ public class HeapFile implements DbFile {
             // Write new page data to file
             raf.write(newPage.getPageData());
         }
+        // Fetch the page from BufferPool
+        HeapPage newPage = (HeapPage) Database.getBufferPool().getPage(tid, newPid, Permissions.READ_WRITE);
+        // Insert the tuple into the new page
+        newPage.insertTuple(t);
+        // Mark the new page as dirty
+        newPage.markDirty(true, tid);
         // Add the new page to modified pages array list
         modifiedPages.add(newPage);
         // Return modified pages
