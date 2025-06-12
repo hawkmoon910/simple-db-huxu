@@ -111,11 +111,7 @@ public class JoinOptimizer {
             // HINT: You may need to use the variable "j" if you implemented
             // a join algorithm that's more complicated than a basic
             // nested-loops join.
-            if (j.p == Predicate.Op.EQUALS){
-                return cost1 + cost2 + card1;
-            } else {
-                return cost1 + card1 * cost2 + card1 * card2;
-            }
+            return cost1 + card1 * cost2 + card1 * card2;
         }
     }
 
