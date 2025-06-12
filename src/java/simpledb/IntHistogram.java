@@ -4,6 +4,13 @@ package simpledb;
  */
 public class IntHistogram {
 
+    private int[] hist;
+    private int min;
+    private int max;
+    private int buckets;
+    private int width;
+    private int totalValues;
+
     /**
      * Create a new IntHistogram.
      * 
@@ -21,7 +28,12 @@ public class IntHistogram {
      * @param max The maximum integer value that will ever be passed to this class for histogramming
      */
     public IntHistogram(int buckets, int min, int max) {
-    	// some code goes here
+    	this.buckets = Math.min(buckets, max - min + 1);
+        this.hist = new int[this.buckets];
+        this.min = min;
+        this.max = max;
+        this.width = (int) (Math.ceil((double) (max - min) / buckets));
+        this.totalValues = 0;
     }
 
     /**
@@ -29,7 +41,12 @@ public class IntHistogram {
      * @param v Value to add to the histogram
      */
     public void addValue(int v) {
-    	// some code goes here
+    	if (v < min || v > max) {
+            return;
+        }
+        int id = Math.min((v - min) / width, buckets - 1);
+        hist[id]++;
+        totalValues++;
     }
 
     /**
@@ -43,9 +60,63 @@ public class IntHistogram {
      * @return Predicted selectivity of this particular operator and value
      */
     public double estimateSelectivity(Predicate.Op op, int v) {
+        if (totalValues == 0) {
+            return 0.0;
+        }
+        double selectivity = 0.0;
+        int bucketIndex = Math.min(Math.max((v - min) / width, 0), buckets - 1);
+    	switch (op){
+            case GREATER_THAN:
+                if (v < min){
+                    return 1.0;
+                }
+                if (v >= max){
+                    return 0.0;
+                }
+                int right = (min + (bucketIndex + 1) * width - 1);
+                double bucketFraction = (double) (right - v) / width;
+                selectivity += bucketFraction * hist[bucketIndex];
 
-    	// some code goes here
-        return -1.0;
+                for (int i = bucketIndex + 1; i < buckets; i++) {
+                    selectivity += hist[i];
+                }
+                return selectivity / totalValues;
+
+            case LESS_THAN:
+                if (v <= min){
+                    return 0.0;
+                }
+                if (v > max){
+                    return 1.0;
+                }
+
+                int left = (min + bucketIndex * width);
+                double leftFraction = (double) (v - left) / width;
+                selectivity += leftFraction * hist[bucketIndex];
+
+                for (int i = 0; i < bucketIndex; i++) {
+                    selectivity += hist[i];
+                }
+                return selectivity / totalValues;
+
+            case LESS_THAN_OR_EQ:
+                return estimateSelectivity(Predicate.Op.LESS_THAN, v + 1);
+
+            case GREATER_THAN_OR_EQ:
+                return estimateSelectivity(Predicate.Op.GREATER_THAN, v - 1);
+
+            case EQUALS:
+                if (v < min || v > max) {
+                    return 0.0;
+                }
+                return (double) hist[bucketIndex] / width / totalValues;
+
+            case NOT_EQUALS:
+                return 1.0 - estimateSelectivity(Predicate.Op.EQUALS, v);
+            
+            default:
+                throw new IllegalArgumentException("Unsupported operator: " + op);
+        }
     }
     
     /**
@@ -58,15 +129,26 @@ public class IntHistogram {
      * */
     public double avgSelectivity()
     {
-        // some code goes here
-        return 1.0;
+        if (totalValues == 0) {
+            return 0.0;
+        }
+        double sum = 0.0;
+        for (int i = 0; i < buckets; i++) {
+            double height = hist[i];
+            sum += (height / width) / totalValues;
+        }
+        return sum / buckets;
     }
     
     /**
      * @return A string describing this histogram, for debugging purposes
      */
     public String toString() {
-        // some code goes here
-        return null;
+        StringBuilder sb = new StringBuilder();
+        sb.append("IntHistogram: \n");
+        for (int i = 0; i < hist.length; i++) {
+            sb.append(String.format("Bucket %d: count = %d\n", i, hist[i]));
+        }
+        return sb.toString();
     }
 }
