@@ -107,7 +107,7 @@ public class JoinOptimizer {
             // You do not need to implement proper support for these for Lab 3.
             return card1 + cost1 + cost2;
         } else {
-            // cost = outer cost + #outer * inner cost + output size
+            // Return calculated join cost
             return cost1 + card1 * cost2 + card1 * card2;
         }
     }
@@ -152,15 +152,24 @@ public class JoinOptimizer {
             String field2PureName, int card1, int card2, boolean t1pkey,
             boolean t2pkey, Map<String, TableStats> stats,
             Map<String, Integer> tableAliasToId) {
+        // If the join is an equality predicate
         if (joinOp == Predicate.Op.EQUALS) {
+            // If neither side is a primary key
             if (!t1pkey && !t2pkey) {
+                // Use the larger cardinality (max) to avoid underestimation
                 return Math.max(card1, card2);
+            // If only table 1 is a primary key
             } else if (!t1pkey) {
+                // Return card2 as it is at most that
                 return card2;
+            // If table 1 is a primary key
             } else {
+                // Return card1, only option
                 return card1;
             }
+        // For non-equality joins, default selectivity factor of 0.3
         } else {
+            // Default calculated join cardinality
             return (int) (card1 * card2 * 0.3);
         }
     }
