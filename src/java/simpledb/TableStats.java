@@ -16,12 +16,17 @@ public class TableStats {
     private static final ConcurrentHashMap<String, TableStats> statsMap = new ConcurrentHashMap<String, TableStats>();
 
     static final int IOCOSTPERPAGE = 1000;
-
+    // Cost per page
     private final int ioCostPerPage;
+    // Reference to physical storage file
     private final HeapFile dbFile;
+    // Schema of the table
     private final TupleDesc tupleDesc;
+    // Creates map for histograms for int fields
     private final Map<Integer, IntHistogram> intHistograms;
+    // Creates map for histograms for string fields
     private final Map<Integer, StringHistogram> stringHistograms;
+    // Count of the total tuples in the table
     private int totalTuples;
 
     public static TableStats getTableStats(String tablename) {
@@ -91,66 +96,104 @@ public class TableStats {
         // You should try to do this reasonably efficiently, but you don't
         // necessarily have to (for example) do everything
         // in a single scan of the table.
-        this.ioCostPerPage = ioCostPerPage;
-        this.dbFile = (HeapFile) Database.getCatalog().getDatabaseFile(tableid);
-        this.tupleDesc = dbFile.getTupleDesc();
-        this.intHistograms = new HashMap<>();
-        this.stringHistograms = new HashMap<>();
-        this.totalTuples = 0;
 
+        // Store the IO cost per page
+        this.ioCostPerPage = ioCostPerPage;
+        // Gets the heap file representing the table from the catalog
+        this.dbFile = (HeapFile) Database.getCatalog().getDatabaseFile(tableid);
+        // Get schema of the table
+        this.tupleDesc = dbFile.getTupleDesc();
+        // Initialize map to store int histogram
+        this.intHistograms = new HashMap<>();
+        // Initialize map to store string histogram
+        this.stringHistograms = new HashMap<>();
+        // Initialize count for tuples to zero
+        this.totalTuples = 0;
+        // Create an iterator
         DbFileIterator it = dbFile.iterator(new TransactionId());
-        // First pass: find min and max for each int field
+        // Temporary map to track min values for each integer field
         Map<Integer, Integer> minMap = new HashMap<>();
+        // Temporary map to track max values for each integer field
         Map<Integer, Integer> maxMap = new HashMap<>();
 
+        // Determine min and max for each INT field, and count total tuples
         try {
+            // Open the iterator
             it.open();
+            // Iterate through all tuples
             while (it.hasNext()) {
+                // Get the next tuple
                 Tuple tuple = it.next();
+                // Increment total tuple count
                 totalTuples++;
-
+                // Loop through each field in the tuple
                 for (int i = 0; i < tupleDesc.numFields(); i++) {
-                    Type t = tupleDesc.getFieldType(i);
-                    if (t == Type.INT_TYPE) {
+                    // Get field type
+                    Type type = tupleDesc.getFieldType(i);
+                    // Check if type is int
+                    if (type == Type.INT_TYPE) {
+                        // Get integer value
                         int val = ((IntField) tuple.getField(i)).getValue();
+                        // Update min map for the field
                         minMap.put(i, Math.min(minMap.getOrDefault(i, val), val));
+                        // Update max map for the field
                         maxMap.put(i, Math.max(maxMap.getOrDefault(i, val), val));
                     }
                 }
             }
+            // Close the iterator
             it.close();
         } catch (Exception e) {
+            // Print any exceptions encountered
             e.printStackTrace();
         }
-
-        // Initialize histograms
+        // Create IntHistograms using collected min/max ranges for int fields
         for (Map.Entry<Integer, Integer> entry : minMap.entrySet()) {
-            int field = entry.getKey();
-            intHistograms.put(field, new IntHistogram(NUM_HIST_BINS, minMap.get(field), maxMap.get(field)));
+            // Get field index
+            int fieldIndex = entry.getKey();
+            // Get min value
+            int min = minMap.get(fieldIndex);
+            // Get max value
+            int max = maxMap.get(fieldIndex);
+            // Create histogram with specified number of bins and min/max
+            intHistograms.put(fieldIndex, new IntHistogram(NUM_HIST_BINS, min, max));
         }
-
+        // Initialize empty StringHistograms for all string fields
         for (int i = 0; i < tupleDesc.numFields(); i++) {
+            // Check if schema is a string
             if (tupleDesc.getFieldType(i) == Type.STRING_TYPE) {
+                // Create histogram with number of bins (100)
                 stringHistograms.put(i, new StringHistogram(NUM_HIST_BINS));
             }
         }
 
-        // Second pass: add values to histograms
+        // Populate the histograms with actual values
         try {
+            // Re-open the iterator
             it.open();
+            // Loop through all tuples again
             while (it.hasNext()) {
+                // Get next tuple
                 Tuple tuple = it.next();
+                // Loop through each field in the tuple
                 for (int i = 0; i < tupleDesc.numFields(); i++) {
-                    Field f = tuple.getField(i);
-                    if (f.getType() == Type.INT_TYPE) {
-                        intHistograms.get(i).addValue(((IntField) f).getValue());
-                    } else if (f.getType() == Type.STRING_TYPE) {
-                        stringHistograms.get(i).addValue(((StringField) f).getValue());
+                    // Get the field
+                    Field field = tuple.getField(i);
+                    // Checks if type is int
+                    if (field.getType() == Type.INT_TYPE) {
+                        // Add int value to int histogram
+                        intHistograms.get(i).addValue(((IntField) field).getValue());
+                    // Checks if type is string
+                    } else if (field.getType() == Type.STRING_TYPE) {
+                        // Add string value to string histogram
+                        stringHistograms.get(i).addValue(((StringField) field).getValue());
                     }
                 }
             }
+            // Close the iterator
             it.close();
         } catch (Exception e) {
+            // Print any exceptions encountered
             e.printStackTrace();
         }
     }
@@ -168,6 +211,7 @@ public class TableStats {
      * @return The estimated cost of scanning the table.
      */
     public double estimateScanCost() {
+        // Estimate scan cost as pages * cost per page
         return dbFile.numPages() * (double) ioCostPerPage;
     }
 
@@ -181,6 +225,7 @@ public class TableStats {
      *         selectivityFactor
      */
     public int estimateTableCardinality(double selectivityFactor) {
+        // Estimate output cardinality
         return (int) Math.round(totalTuples * selectivityFactor);
     }
 
@@ -195,12 +240,17 @@ public class TableStats {
      * expected selectivity. You may estimate this value from the histograms.
      * */
     public double avgSelectivity(int field, Predicate.Op op) {
+        // Checks if map of int fields includes this field
         if (intHistograms.containsKey(field)) {
+            // Average for int
             return intHistograms.get(field).avgSelectivity();
+        // Checks if map of string fields includes this field
         } else if (stringHistograms.containsKey(field)) {
+            // Average for string
             return stringHistograms.get(field).avgSelectivity();
         }
-        return 1.0;
+        // Default
+        return 1.0; 
     }
 
     /**
@@ -217,9 +267,13 @@ public class TableStats {
      *         predicate
      */
     public double estimateSelectivity(int field, Predicate.Op op, Field constant) {
+        // Checks if type is int and if map of int fields includes this field
         if (constant.getType() == Type.INT_TYPE && intHistograms.containsKey(field)) {
+            // Get the estimated selectivity for int fields
             return intHistograms.get(field).estimateSelectivity(op, ((IntField) constant).getValue());
+        // Checks if type is string and if map of string fields includes this field
         } else if (constant.getType() == Type.STRING_TYPE && stringHistograms.containsKey(field)) {
+            // Get the estimated selectivity for string fields
             return stringHistograms.get(field).estimateSelectivity(op, ((StringField) constant).getValue());
         }
         return 1.0;
@@ -229,6 +283,7 @@ public class TableStats {
      * return the total number of tuples in this table
      * */
     public int totalTuples() {
+        // Return total tuples
         return totalTuples;
     }
 
