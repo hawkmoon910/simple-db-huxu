@@ -107,10 +107,7 @@ public class JoinOptimizer {
             // You do not need to implement proper support for these for Lab 3.
             return card1 + cost1 + cost2;
         } else {
-            // Insert your code here.
-            // HINT: You may need to use the variable "j" if you implemented
-            // a join algorithm that's more complicated than a basic
-            // nested-loops join.
+            // cost = outer cost + #outer * inner cost + output size
             return cost1 + card1 * cost2 + card1 * card2;
         }
     }
@@ -155,7 +152,7 @@ public class JoinOptimizer {
             String field2PureName, int card1, int card2, boolean t1pkey,
             boolean t2pkey, Map<String, TableStats> stats,
             Map<String, Integer> tableAliasToId) {
-        if (joinOp.equals(Predicate.Op.EQUALS)) {
+        if (joinOp == Predicate.Op.EQUALS) {
             if (!t1pkey && !t2pkey) {
                 return Math.max(card1, card2);
             } else if (!t1pkey) {
